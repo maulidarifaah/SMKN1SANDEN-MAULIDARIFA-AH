@@ -1,0 +1,102 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <title>Detail Request - Farmagitechs</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 30px; background-color: #f8f9fa; }
+        .container { max-width: 700px; margin: 0 auto; background: white; padding: 30px; border-radius: 8px; box-shadow: 0 2px 10px rgba(0,0,0,0.05); }
+        h2 { color: #333; margin-top: 0; border-bottom: 2px solid #007BFF; padding-bottom: 10px; }
+        .meta-grid { display: grid; grid-template-columns: 150px 1fr; gap: 10px; margin-bottom: 20px; font-size: 14px; }
+        .meta-label { font-weight: bold; color: #555; }
+        .meta-value { color: #333; }
+        .content-box { background: #fdfdfd; border: 1px solid #dee2e6; padding: 20px; border-radius: 6px; margin-top: 15px; min-height: 100px; }
+        .btn-back { display: inline-block; background-color: #6c757d; color: white; text-decoration: none; padding: 10px 20px; border-radius: 4px; font-weight: bold; font-size: 14px; margin-top: 20px; }
+        .badge { padding: 4px 8px; border-radius: 4px; font-size: 12px; font-weight: bold; text-transform: uppercase; }
+        .badge-waiting { background-color: #ffc107; color: #212529; }
+        .badge-accepted { background-color: #28a745; color: white; }
+        .loading { font-style: italic; color: #777; text-align: center; padding: 20px; }
+    </style>
+</head>
+<body>
+
+<div class="container" id="detailContainer">
+    <div class="loading">Sedang memuat detail data...</div>
+</div>
+
+<script>
+    const token = localStorage.getItem('access_token');
+    if (!token) { window.location.href = 'login.html'; }
+
+    // Mengambil parameter ?uuid=... dari URL browser
+    const urlParams = new URLSearchParams(window.location.search);
+    const uuid = urlParams.get('uuid');
+
+    if (!uuid) {
+        document.getElementById('detailContainer').innerHTML = `
+            <div style='text-align:center; color:red;'>
+                <h3>Eror: Parameter UUID tidak ditemukan di URL!</h3>
+                <a href="list_request.html" class="btn-back">← Kembali ke Daftar</a>
+            </div>`;
+    } else {
+        loadDetailData();
+    }
+
+    async function loadDetailData() {
+        const baseUrl = "http://192.168.0.199:9006";
+        try {
+            // Memanggil API get_by_uuid sesuai instruksi soal
+            const res = await fetch(`${baseUrl}/api/request/get_by_uuid?request_uuid=${uuid}`, {
+                headers: { 'Authorization': `Bearer ${token}` }
+            });
+            const result = await res.json();
+            
+            if (res.ok && result.data) {
+                const req = result.data; // Mengambil objek tunggal di dalam .data
+                
+                let statusClass = 'badge-waiting';
+                if (req.status === 'accepted') statusClass = 'badge-accepted';
+                
+                // Mengantisipasi hilangnya objek hospital dengan memunculkan nama user pengaju
+                const hospitalDisplay = req.hospital?.hospital_name || req.user?.fullname || '-';
+
+                document.getElementById('detailContainer').innerHTML = `
+                    <h2>Detail Request Feature</h2>
+                    <div class="meta-grid">
+                        <div class="meta-label">Judul Request:</div>
+                        <div class="meta-value" style="font-weight:bold; color:#0056b3;">${req.request_title || '-'}</div>
+                        
+                        <div class="meta-label">Pengaju (User/RS):</div>
+                        <div class="meta-value">${hospitalDisplay}</div>
+                        
+                        <div class="meta-label">Produk Terkait:</div>
+                        <div class="meta-value">${req.product?.product_name || '-'}</div>
+                        
+                        <div class="meta-label">Status:</div>
+                        <div class="meta-value"><span class="badge ${statusClass}">${req.status}</span></div>
+                        
+                        <div class="meta-label">Waktu Request:</div>
+                        <div class="meta-value">${req.request_time ? req.request_time.replace('T', ' ').substring(0, 16) : '-'}</div>
+                    </div>
+                    
+                    <div class="meta-label" style="margin-top:20px;">Isi Konten / Deskripsi Pengajuan:</div>
+                    <div class="content-box">
+                        ${req.content || '<p style="color:#999; font-style:italic;">Tidak ada deskripsi konten.</p>'}
+                    </div>
+                    
+                    <a href="list_request.html" class="btn-back">← Kembali ke Daftar</a>
+                `;
+            } else {
+                document.getElementById('detailContainer').innerHTML = `
+                    <p style='color:red;'>Gagal memuat: ${result.message || 'Data tidak ditemukan.'}</p>
+                    <a href="list_request.html" class="btn-back">← Kembali</a>`;
+            }
+        } catch (e) {
+            document.getElementById('detailContainer').innerHTML = `
+                <p style='color:red;'>Terjadi kesalahan jaringan saat mengambil data dari server.</p>
+                <a href="list_request.html" class="btn-back">← Kembali</a>`;
+        }
+    }
+</script>
+</body>
+</html>

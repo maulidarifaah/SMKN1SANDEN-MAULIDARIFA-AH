@@ -1,0 +1,127 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <title>Tambah Request Baru - Farmagitechs</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 30px; background-color: #f8f9fa; }
+        .container { max-width: 600px; margin: 0 auto; background: white; padding: 25px; border-radius: 8px; box-shadow: 0 2px 10px rgba(0,0,0,0.05); }
+        h2 { color: #333; margin-bottom: 20px; }
+        .form-group { margin-bottom: 15px; display: flex; flex-direction: column; }
+        .form-group label { font-size: 14px; font-weight: bold; margin-bottom: 5px; color: #555; }
+        .form-group input, .form-group select, .form-group textarea { padding: 10px; border: 1px solid #ccc; border-radius: 4px; font-size: 14px; }
+        .form-group textarea { resize: vertical; height: 120px; }
+        .btn-group { display: flex; gap: 10px; margin-top: 20px; }
+        .btn { padding: 10px 20px; border: none; border-radius: 4px; cursor: pointer; font-weight: bold; font-size: 14px; text-decoration: none; text-align: center; }
+        .btn-submit { background-color: #007BFF; color: white; }
+        .btn-submit:disabled { background-color: #cccccc; cursor: not-allowed; }
+        .btn-cancel { background-color: #6c757d; color: white; }
+        .alert { padding: 12px; margin-bottom: 20px; border-radius: 4px; font-size: 14px; display: none; }
+        .alert-success { background-color: #d4edda; color: #155724; border: 1px solid #c3e6cb; }
+        .alert-danger { background-color: #f8d7da; color: #721c24; border: 1px solid #f5c6cb; }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <h2>Tambah Request Baru</h2>
+    <div id="alertBox" class="alert"></div>
+
+    <form id="addForm">
+        <div class="form-group">
+            <label for="productSelect">Pilih Produk *</label>
+            <select id="productSelect" required>
+                <option value="">-- Pilih Produk --</option>
+            </select>
+        </div>
+
+        <div class="form-group">
+            <label for="titleInput">Title / Judul Request *</label>
+            <input type="text" id="titleInput" placeholder="Masukkan judul request (ex: Test req)" required>
+        </div>
+
+        <div class="form-group">
+            <label for="contentInput">Content / Penjelasan Detail *</label>
+            <textarea id="contentInput" placeholder="Tulis penjelasannya disini..." required></textarea>
+        </div>
+
+        <div class="btn-group">
+            <button type="submit" id="btnSave" class="btn btn-submit">Simpan Request</button>
+            <a href="list_request.html" class="btn btn-cancel">Kembali</a>
+        </div>
+    </form>
+</div>
+
+<script>
+    const token = localStorage.getItem('access_token');
+    if (!token) { window.location.href = 'login.html'; }
+
+    const baseUrl = "http://192.168.0.199:9006";
+    const productSelect = document.getElementById('productSelect');
+    const alertBox = document.getElementById('alertBox');
+    const btnSave = document.getElementById('btnSave');
+
+    async function loadProducts() {
+        try {
+            const res = await fetch(`${baseUrl}/api/product/list?page=0`, {
+                headers: { 'Authorization': `Bearer ${token}` }
+            });
+            const result = await res.json();
+            const list = result.data || [];
+            list.forEach(prod => {
+                const opt = document.createElement('option');
+                opt.value = prod.product_id;
+                opt.textContent = prod.product_name;
+                productSelect.appendChild(opt);
+            });
+        } catch (e) { console.error(e); }
+    }
+
+    document.getElementById('addForm').addEventListener('submit', async function(e) {
+        e.preventDefault();
+        
+        btnSave.disabled = true;
+        alertBox.style.display = 'block';
+        alertBox.className = 'alert alert-success';
+        alertBox.innerText = 'Sedang mengirim permintaan...';
+
+        // Menyesuaikan payload dengan spesifikasi skema POST /api/request/add
+        const payload = {
+            request_title: document.getElementById('titleInput').value,
+            product_id: parseInt(productSelect.value),
+            content: document.getElementById('contentInput').value, 
+            hospital_id: 1 // Data testing wajib bernilai 1 (integer)
+        };
+
+        try {
+            const res = await fetch(`${baseUrl}/api/request/add`, {
+                method: 'POST',
+                headers: {
+                    'Authorization': `Bearer ${token}`,
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify(payload)
+            });
+
+            const result = await res.json();
+
+            if (res.ok) {
+                alertBox.className = 'alert alert-success';
+                alertBox.innerText = result.message || 'Permintaan berhasil dikirim.';
+                setTimeout(() => { window.location.href = 'list_request.html'; }, 1500);
+            } else {
+                btnSave.disabled = false;
+                alertBox.className = 'alert alert-danger';
+                alertBox.innerText = result.message || 'Gagal mengirim data.';
+            }
+        } catch (error) {
+            btnSave.disabled = false;
+            alertBox.className = 'alert alert-danger';
+            alertBox.innerText = 'Terjadi kesalahan jaringan server local.';
+        }
+    });
+
+    loadProducts();
+</script>
+</body>
+</html>
